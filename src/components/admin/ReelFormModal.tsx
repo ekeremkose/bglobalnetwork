@@ -171,7 +171,7 @@ export function ReelFormModal({ item, open, onClose, onSave }: Props) {
               <p className="mt-1 text-xs font-medium text-emerald-600">✓ Thumbnail getirildi</p>
             )}
             {fetchState === "error" && (
-              <p className="mt-1 text-xs text-amber-600">Instagram thumbnail alınamadı — lütfen URL'yi manuel girin.</p>
+              <p className="mt-1 text-xs text-amber-600">Instagram thumbnail alınamadı &mdash; lütfen URL&apos;yi manuel girin.</p>
             )}
           </div>
 
