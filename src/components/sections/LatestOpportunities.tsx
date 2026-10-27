@@ -2,8 +2,8 @@ import Link from "next/link";
 import { OpportunityCard } from "@/components/opportunities/OpportunityCard";
 import { getLatestOpportunities } from "@/lib/repositories/opportunityRepository";
 
-export function LatestOpportunities() {
-  const latest = getLatestOpportunities(4);
+export async function LatestOpportunities() {
+  const latest = await getLatestOpportunities(4);
 
   return (
     <section className="py-16 sm:py-20">

@@ -7,10 +7,10 @@ html {
 }
 
 body {
-  color: #e8eaf8;
-  background: #122A65;
+  color: #f4f5fa;
+  background: #080e1e;
 }
 
 ::selection {
-  background: rgba(19, 19, 232, 0.25);
+  background: rgba(104, 120, 255, 0.35);
 }

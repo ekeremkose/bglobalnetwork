@@ -1,11 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { Category, Country, Opportunity } from "@/lib/types/content";
-import { OpportunityGrid } from "@/components/opportunities/OpportunityGrid";
-import { SectionHeading } from "@/components/ui/SectionHeading";
-import { getDeadlineStatus } from "@/lib/utils/date";
-import { useSearchParams } from "next/navigation";
+import {
+  OpportunityRow,
+  OpportunityTableHead,
+} from "@/components/opportunities/OpportunityRow";
+import {
+  PageIntro,
+  fieldClass,
+  labelClass,
+} from "@/components/ui/PageIntro";
+import {
+  getDeadlineStatus,
+  matchesStatusFilter,
+  type StatusFilter,
+} from "@/lib/utils/date";
 
 type Props = {
   opportunities: Opportunity[];
@@ -13,67 +24,235 @@ type Props = {
   countries: Country[];
 };
 
-export function OpportunitiesPageClient({ opportunities, categories, countries }: Props) {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string>("");
-  const [country, setCountry] = useState<string>("");
-  const [deadlineStatus, setDeadlineStatus] = useState<string>("");
-  const [featuredOnly, setFeaturedOnly] = useState(false);
-  const searchParams = useSearchParams();
+type Param = "q" | "category" | "country" | "durum";
+
+const STATUS_OPTIONS: { value: Exclude<StatusFilter, "">; label: string }[] = [
+  { value: "active", label: "Açık" },
+  { value: "soon", label: "Son günler" },
+  { value: "closed", label: "Süresi doldu" },
+];
+
+const time = (iso: string) => new Date(iso).getTime();
+
+export function OpportunitiesPageClient({
+  opportunities,
+  categories,
+  countries,
+}: Props) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams() ?? new URLSearchParams();
+
+  // The URL is the single source of truth for the three selects; only values
+  // that exist in the data are accepted, so a stale or hand-typed parameter
+  // never leaves a select showing something other than what is applied.
+  const rawCategory = searchParams.get("category") ?? "";
+  const rawCountry = searchParams.get("country") ?? "";
+  const rawStatus = searchParams.get("durum") ?? "";
+  const category = categories.some((c) => c.slug === rawCategory)
+    ? rawCategory
+    : "";
+  const country = countries.some((c) => c.code === rawCountry)
+    ? rawCountry
+    : "";
+  const status: StatusFilter = STATUS_OPTIONS.some((o) => o.value === rawStatus)
+    ? (rawStatus as StatusFilter)
+    : "";
+
+  // The search box keeps its own state so typing is never interrupted; it is
+  // written to the URL after a pause and re-read when the URL changes from
+  // outside (back/forward, a navbar link).
+  const urlQuery = searchParams.get("q") ?? "";
+  const searchKey = searchParams.toString();
+  const [query, setQuery] = useState(urlQuery);
+  const pendingWrite = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The query string this component last wrote itself, so a URL change that
+  // was not ours (Back/Forward, a navbar link) can be told apart from our own.
+  const lastWritten = useRef<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  const cancelPendingWrite = () => {
+    if (pendingWrite.current) clearTimeout(pendingWrite.current);
+    pendingWrite.current = null;
+  };
 
   useEffect(() => {
-    if (!searchParams) return;
-    const featured = searchParams.get("featured");
-    const cat = searchParams.get("category");
-    const ctry = searchParams.get("country");
-    if (featured === "1") setFeaturedOnly(true);
-    if (cat) setCategory(cat);
-    if (ctry) setCountry(ctry);
-  }, [searchParams]);
+    if (lastWritten.current === searchKey) {
+      lastWritten.current = null;
+      return;
+    }
+    // Navigation from outside: it wins over a search still waiting to be
+    // written, which would otherwise overwrite the new URL.
+    cancelPendingWrite();
+    lastWritten.current = null;
+    setQuery(urlQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchKey]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return opportunities.filter((o) => {
-      if (featuredOnly && !o.featured) return false;
+  useEffect(() => {
+    window.addEventListener("popstate", cancelPendingWrite);
+    return () => {
+      window.removeEventListener("popstate", cancelPendingWrite);
+      cancelPendingWrite();
+    };
+  }, []);
+
+  const writeUrl = (patch: Partial<Record<Param, string>>, push: boolean) => {
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    const qs = params.toString();
+    if (qs === window.location.search.slice(1)) return;
+    lastWritten.current = qs;
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    if (push) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+  };
+
+  const onQueryChange = (value: string) => {
+    setQuery(value);
+    cancelPendingWrite();
+    const base = window.location.search;
+    pendingWrite.current = setTimeout(() => {
+      pendingWrite.current = null;
+      // The URL moved on while we waited: drop the write.
+      if (window.location.search !== base) return;
+      writeUrl({ q: value.trim() }, false);
+    }, 350);
+  };
+
+  const onSelect = (key: Exclude<Param, "q">, value: string) => {
+    // Flush a half-written search first so the new history entry includes it.
+    cancelPendingWrite();
+    writeUrl({ q: query.trim(), [key]: value }, true);
+  };
+
+  const clear = () => {
+    cancelPendingWrite();
+    setQuery("");
+    writeUrl({ q: "", category: "", country: "", durum: "" }, true);
+  };
+
+  const { open, closed } = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase("tr-TR");
+    const matches = opportunities.filter((o) => {
       if (category && o.category !== category) return false;
       if (country && o.country !== country) return false;
-      if (deadlineStatus) {
-        const s = getDeadlineStatus(o.deadline);
-        if (s !== deadlineStatus) return false;
-      }
+      if (!matchesStatusFilter(o.deadline, status)) return false;
       if (!q) return true;
-      const hay = `${o.title} ${o.shortDescription}`.toLowerCase();
-      return hay.includes(q);
+      return `${o.title} ${o.shortDescription}`
+        .toLocaleLowerCase("tr-TR")
+        .includes(q);
     });
-  }, [opportunities, query, category, country, deadlineStatus, featuredOnly]);
+    return {
+      open: matches
+        .filter((o) => getDeadlineStatus(o.deadline) !== "closed")
+        .sort((a, b) => time(a.deadline) - time(b.deadline)),
+      closed: matches
+        .filter((o) => getDeadlineStatus(o.deadline) === "closed")
+        .sort((a, b) => time(b.deadline) - time(a.deadline)),
+    };
+  }, [opportunities, query, category, country, status]);
+
+  const totalOpen = opportunities.filter(
+    (o) => getDeadlineStatus(o.deadline) !== "closed"
+  ).length;
+  const totalClosed = opportunities.length - totalOpen;
+  const filtering = !!(query.trim() || category || country || status);
+
+  const chips = [
+    category && {
+      key: "category" as const,
+      label: categories.find((c) => c.slug === category)?.title ?? category,
+    },
+    country && {
+      key: "country" as const,
+      label: countries.find((c) => c.code === country)?.name ?? country,
+    },
+    status && {
+      key: "durum" as const,
+      label: STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status,
+    },
+  ].filter((c): c is { key: "category" | "country" | "durum"; label: string } =>
+    Boolean(c)
+  );
 
   return (
-    <div className="space-y-8">
-      <SectionHeading
-        eyebrow="Projeler"
-        title="Projeleri filtrele ve keşfet"
-        description="Arama yap, kategori/ülke seç ve son tarihe göre hızlıca daralt."
-        tone="light"
+    <div className="pb-24">
+      <PageIntro
+        title="Projeler"
+        description={`${totalOpen} program başvuruya açık. Süresi dolan ${totalClosed} program arşivde duruyor.`}
       />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
-        <div className="grid gap-3 md:grid-cols-12">
-          <div className="md:col-span-5">
-            <label className="text-xs font-semibold text-slate-700">Arama</label>
+      <form
+        className="flex flex-col gap-3 border-y border-white/10 py-4 md:gap-4 md:py-6 lg:grid lg:grid-cols-[1fr_12rem_9rem_9rem]"
+        onSubmit={(e) => e.preventDefault()}
+        role="search"
+      >
+        <div className="flex items-end gap-3">
+          <div className="min-w-0 flex-1">
+            <label htmlFor="q" className={`${labelClass} sr-only lg:not-sr-only lg:mb-1.5`}>
+              Ara
+            </label>
             <input
+              id="q"
+              type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Örn: Erasmus, staj, burs, yaz okulu..."
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-brand-200"
+              onChange={(e) => onQueryChange(e.target.value)}
+              placeholder="Staj, burs, ülke…"
+              className={fieldClass}
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setPanelOpen((v) => !v)}
+            aria-expanded={panelOpen}
+            aria-controls="filtre-paneli"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-white/15 px-3.5 py-2.5 text-[15px] text-white transition hover:border-white/30 md:hidden"
+          >
+            Filtreler
+            {chips.length > 0 && (
+              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-white px-1 text-xs font-semibold text-ink">
+                {chips.length}
+              </span>
+            )}
+          </button>
+        </div>
 
-          <div className="md:col-span-3">
-            <label className="text-xs font-semibold text-slate-700">Kategori</label>
+        {!panelOpen && chips.length > 0 && (
+          <ul className="flex flex-wrap gap-2 md:hidden" aria-label="Etkin filtreler">
+            {chips.map((c) => (
+              <li key={c.key}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(c.key, "")}
+                  aria-label={`${c.label} filtresini kaldır`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/[0.06] py-1 pl-3 pr-2.5 text-sm text-white"
+                >
+                  {c.label}
+                  <span aria-hidden className="text-white/60">
+                    ×
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div
+          id="filtre-paneli"
+          className={`${panelOpen ? "grid" : "hidden"} grid-cols-2 gap-3 md:grid md:grid-cols-3 md:gap-4 lg:contents`}
+        >
+          <div className="col-span-2 md:col-span-1">
+            <label htmlFor="cat" className={labelClass}>
+              Kategori
+            </label>
             <select
+              id="cat"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-brand-200"
+              onChange={(e) => onSelect("category", e.target.value)}
+              className={fieldClass}
             >
               <option value="">Tümü</option>
               {categories.map((c) => (
@@ -83,13 +262,15 @@ export function OpportunitiesPageClient({ opportunities, categories, countries }
               ))}
             </select>
           </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs font-semibold text-slate-700">Ülke</label>
+          <div>
+            <label htmlFor="ctry" className={labelClass}>
+              Ülke
+            </label>
             <select
+              id="ctry"
               value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-brand-200"
+              onChange={(e) => onSelect("country", e.target.value)}
+              className={fieldClass}
             >
               <option value="">Tümü</option>
               {countries.map((c) => (
@@ -99,41 +280,80 @@ export function OpportunitiesPageClient({ opportunities, categories, countries }
               ))}
             </select>
           </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs font-semibold text-slate-700">Son tarih</label>
+          <div>
+            <label htmlFor="st" className={labelClass}>
+              Durum
+            </label>
             <select
-              value={deadlineStatus}
-              onChange={(e) => setDeadlineStatus(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-brand-200"
+              id="st"
+              value={status}
+              onChange={(e) => onSelect("durum", e.target.value)}
+              className={fieldClass}
             >
               <option value="">Tümü</option>
-              <option value="active">Açık</option>
-              <option value="soon">Son günler</option>
-              <option value="closed">Süre doldu</option>
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
+      </form>
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={featuredOnly}
-              onChange={(e) => setFeaturedOnly(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-brand-700 focus:ring-brand-200"
-            />
-            Sadece öne çıkanlar
-          </label>
-
-          <div className="text-sm text-slate-600">
-            <span className="font-semibold text-ink">{filtered.length}</span> sonuç
-          </div>
-        </div>
+      <div className="mt-5 flex items-center justify-between gap-4 text-[15px] text-white/55">
+        <span aria-live="polite">
+          {open.length + closed.length} program
+        </span>
+        {filtering && (
+          <button
+            type="button"
+            onClick={clear}
+            className="underline decoration-white/30 underline-offset-4 transition hover:text-white"
+          >
+            Filtreleri temizle
+          </button>
+        )}
       </div>
 
-      <OpportunityGrid opportunities={filtered} />
+      {open.length + closed.length === 0 ? (
+        <p className="mt-12 max-w-md text-lg text-white/65">
+          Bu filtrelere uyan program yok. Filtreleri gevşetmeyi dene.
+        </p>
+      ) : (
+        <>
+          {open.length > 0 && (
+            <section className="mt-8" aria-labelledby="acik">
+              <h2 id="acik" className="sr-only">
+                Başvuruya açık programlar
+              </h2>
+              <OpportunityTableHead />
+              {open.map((o) => (
+                <OpportunityRow key={o.id} opportunity={o} />
+              ))}
+            </section>
+          )}
+
+          {closed.length > 0 && (
+            <section className="mt-14" aria-labelledby="kapali">
+              <h2
+                id="kapali"
+                className="text-xl font-semibold text-white/80"
+              >
+                Süresi dolanlar
+              </h2>
+              <p className="mt-1 mb-4 text-[15px] text-white/45">
+                Başvuru kapandı; bir sonraki çağrıyı takip etmek için göz at.
+              </p>
+              <div className="border-t border-white/10">
+                {closed.map((o) => (
+                  <OpportunityRow key={o.id} opportunity={o} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }
-

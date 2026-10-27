@@ -3,8 +3,10 @@ import { getOpportunities } from "@/lib/repositories/opportunityRepository";
 import { getCategories } from "@/lib/repositories/categoryRepository";
 import { getCountries } from "@/lib/repositories/countryRepository";
 
-export default function OpportunitiesPage() {
-  const opportunities = getOpportunities();
+export const revalidate = 3600;
+
+export default async function OpportunitiesPage() {
+  const opportunities = await getOpportunities();
   const categories = getCategories();
   const countries = getCountries();
 

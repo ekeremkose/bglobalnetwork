@@ -6,8 +6,11 @@ export default {
     extend: {
       colors: {
         bg: {
-          DEFAULT: "#122A65",
-          nav: "#0909ed"
+          DEFAULT: "#080E1E",
+          surface: "#0E1730",
+          navy: "#122A65",
+          nav: "#080B17",
+          paper: "#ECEEF4"
         },
         ink: {
           DEFAULT: "#0b0b24",
@@ -26,6 +29,9 @@ export default {
           900: "#080f90",
           950: "#050a60"
         }
+      },
+      fontFamily: {
+        serif: ["var(--font-serif)", "Georgia", "serif"]
       },
       boxShadow: {
         soft: "0 10px 30px rgba(2, 8, 23, 0.10)",

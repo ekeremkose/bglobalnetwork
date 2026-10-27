@@ -1,6 +1,6 @@
-import type { Reel } from "@/lib/types/content";
+import type { Reel, Seed } from "@/lib/types/content";
 
-export const reels: Reel[] = [
+export const reels: Seed<Reel>[] = [
   {
     id: "reel-1",
     slug: "erasmus-plus-basvuruya-hazirlik-checklist",
@@ -8,7 +8,6 @@ export const reels: Reel[] = [
     shortDescription:
       "Motivasyon mektubu, dil belgesi ve transkript sürecini doğru sırayla planla.",
     instagramUrl: "https://www.instagram.com/reel/EXAMPLE1/",
-    thumbnail: "https://picsum.photos/seed/bglobal-reel-1/800/600",
     tag: "Erasmus+",
     featured: true,
     publishedAt: "2026-03-15",
@@ -21,7 +20,6 @@ export const reels: Reel[] = [
     shortDescription:
       "ATS uyumlu CV, doğru anahtar kelimeler ve deneyim anlatımı için 5 hızlı öneri.",
     instagramUrl: "https://www.instagram.com/reel/EXAMPLE2/",
-    thumbnail: "https://picsum.photos/seed/bglobal-reel-2/800/600",
     tag: "Staj",
     featured: true,
     publishedAt: "2026-03-10",
@@ -34,7 +32,6 @@ export const reels: Reel[] = [
     shortDescription:
       "ESC projelerinde destek kalemleri, sorumluluklar ve sık yapılan hatalar.",
     instagramUrl: "https://www.instagram.com/reel/EXAMPLE3/",
-    thumbnail: "https://picsum.photos/seed/bglobal-reel-3/800/600",
     tag: "Gönüllülük",
     publishedAt: "2026-02-28",
     relatedOpportunityIds: ["opp-3"]
@@ -46,7 +43,6 @@ export const reels: Reel[] = [
     shortDescription:
       "Kısa ama etkili niyet mektubu: amaç, plan ve programla uyum.",
     instagramUrl: "https://www.instagram.com/reel/EXAMPLE4/",
-    thumbnail: "https://picsum.photos/seed/bglobal-reel-4/800/600",
     tag: "Yaz Okulu",
     publishedAt: "2026-02-20",
     relatedOpportunityIds: ["opp-6"]

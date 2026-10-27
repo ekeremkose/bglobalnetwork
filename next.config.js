@@ -1,13 +1,16 @@
+// Hosts allowed for remote cover images. Shared with the admin validation
+// (src/lib/utils/validate.ts) so a cover can never be accepted there and then
+// crash next/image on the public pages.
+const { remoteImageHosts } = require("./src/lib/mediaHosts.json");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "picsum.photos" }
-    ]
+    remotePatterns: remoteImageHosts.map((hostname) => ({
+      protocol: "https",
+      hostname
+    }))
   }
 };
 

@@ -5,15 +5,13 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 
-const COMMUNITY_FORMS_URL = "https://forms.gle/PLACEHOLDER";
-
 const navItems = [
   { href: "/opportunities", label: "Projeler" },
   { href: "/reels", label: "İçerik" },
   { href: "/duyurular", label: "Blog" },
 ];
 
-export function SiteNavbar() {
+export function SiteNavbar({ communityFormUrl }: { communityFormUrl: string }) {
   const pathname = usePathname();
   const [logoError, setLogoError] = useState(false);
 
@@ -26,69 +24,64 @@ export function SiteNavbar() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#111132]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="group flex items-center gap-3">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-bg-nav/95 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:gap-6 sm:px-6 sm:py-3.5 lg:px-8">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
           {!logoError ? (
             <Image
               src="/logo.png"
               alt="B-Global Network"
-              width={48}
-              height={48}
-              className="h-12 w-12 rounded-2xl object-contain"
+              width={40}
+              height={40}
+              className="h-9 w-9 shrink-0 rounded-lg object-contain sm:h-10 sm:w-10"
               onError={() => setLogoError(true)}
             />
           ) : (
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-brand-700 to-brand-500 text-white shadow-soft">
-              <span className="text-sm font-bold">B</span>
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg sm:h-10 sm:w-10 bg-brand-700 text-white">
+              <span className="text-xs font-bold">B</span>
             </div>
           )}
-          <span className="whitespace-nowrap text-lg font-bold text-white">B-Global Network</span>
+          <span className="hidden whitespace-nowrap text-lg sm:inline font-semibold tracking-tight text-white">
+            B-Global Network
+          </span>
         </Link>
 
-        <nav className="flex items-center gap-3 overflow-x-auto md:flex">
+        <nav className="flex min-w-0 items-center gap-3 min-[400px]:gap-4 sm:gap-8">
           {navItems.map((item) => {
-            const isActive = item.href !== null && activeHref === item.href;
-            if (item.href === null) {
-              return (
-                <span
-                  key={item.label}
-                  className="relative px-3 py-2 text-sm font-medium text-white/60 select-none cursor-default"
-                >
-                  {item.label}
-                </span>
-              );
-            }
+            const isActive = activeHref === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={[
-                  "relative px-3 py-2 text-sm transition",
+                  "relative py-1 text-[13px] transition min-[400px]:text-sm sm:text-base",
                   isActive
                     ? "font-semibold text-white"
-                    : "rounded-xl font-medium text-white/60 hover:bg-white/5 hover:text-white"
+                    : "font-medium text-white/55 hover:text-white"
                 ].join(" ")}
               >
                 {item.label}
                 {isActive && (
                   <span
                     aria-hidden
-                    className="absolute -bottom-[1px] left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-brand-400"
+                    className="absolute -bottom-0.5 left-0 h-px w-full bg-brand-300"
                   />
                 )}
               </Link>
             );
           })}
-          <a
-            href={COMMUNITY_FORMS_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="ml-2 inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:bg-white/90"
-            aria-label="Topluluğa Katıl (Google Forms)"
-          >
-            Topluluğa Katıl
-          </a>
+            <a
+              href={communityFormUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md bg-white px-2.5 py-1.5 text-[13px] font-semibold text-ink transition hover:bg-white/90 sm:px-4 sm:py-2 sm:text-sm"
+              aria-label="Topluluğa Katıl (Google Forms)"
+            >
+              <span className="min-[360px]:hidden" aria-hidden>
+                Katıl
+              </span>
+              <span className="hidden min-[360px]:inline">Topluluğa Katıl</span>
+            </a>
         </nav>
       </div>
     </header>

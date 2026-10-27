@@ -1,6 +1,6 @@
-import type { Announcement } from "@/lib/types/content";
+import type { Announcement, Seed } from "@/lib/types/content";
 
-export const announcements: Announcement[] = [
+export const announcements: Seed<Announcement>[] = [
   {
     id: "ann-1",
     slug: "bglobal-network-resmen-acildi",

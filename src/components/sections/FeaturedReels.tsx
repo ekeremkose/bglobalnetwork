@@ -2,8 +2,8 @@ import Link from "next/link";
 import { getFeaturedReels } from "@/lib/repositories/reelRepository";
 import { ReelGrid } from "@/components/reels/ReelGrid";
 
-export function FeaturedReels() {
-  const featured = getFeaturedReels(6);
+export async function FeaturedReels() {
+  const featured = await getFeaturedReels(6);
   return (
     <section className="py-16 sm:py-20">
       <div className="mb-10 flex items-center gap-4">

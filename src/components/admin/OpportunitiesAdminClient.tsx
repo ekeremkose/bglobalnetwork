@@ -1,150 +1,125 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { Opportunity } from "@/lib/types/content";
-import { createOpportunity, saveOpportunity, deleteOpportunity } from "@/app/admin/opportunities/actions";
-import { OpportunityFormModal } from "@/components/admin/OpportunityFormModal";
-import { getCategories } from "@/lib/repositories/categoryRepository";
-import { getCountries } from "@/lib/repositories/countryRepository";
+import { useMemo } from "react";
+import type { Opportunity, Reel } from "@/lib/types/content";
+import {
+  deleteOpportunityAction,
+  setOpportunityStatusAction,
+} from "@/app/internal-admin/(panel)/opportunities/actions";
+import { OpportunityEditor } from "@/components/admin/OpportunityEditor";
+import {
+  DeleteConfirm,
+  ListShell,
+  RowActions,
+  RowShell,
+  useAdminList,
+  useListFilter,
+} from "@/components/admin/list";
+import { Pill } from "@/components/admin/ui";
+import { getCategoryBySlug } from "@/lib/repositories/categoryRepository";
+import { getCountryByCode } from "@/lib/repositories/countryRepository";
+import { formatDateShortTr, getDeadlineStatus } from "@/lib/utils/date";
 
-type Props = {
-  initialItems: Opportunity[];
+const api = {
+  setStatus: setOpportunityStatusAction,
+  remove: deleteOpportunityAction,
 };
 
-export function OpportunitiesAdminClient({ initialItems }: Props) {
-  const [items, setItems] = useState<Opportunity[]>(initialItems);
-  const [editingItem, setEditingItem] = useState<Opportunity | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+const stamp = (iso?: string) =>
+  iso
+    ? new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Istanbul" }).format(new Date(iso))
+    : null;
 
-  const categoryOptions = useMemo(
-    () => getCategories().map((c) => ({ value: c.slug, label: c.title })),
-    []
+function DeadlinePill({ deadline }: { deadline: string }) {
+  if (!deadline) return <Pill tone="slate">Son tarih yok</Pill>;
+  const s = getDeadlineStatus(deadline);
+  if (s === "closed") return <Pill tone="red">Süresi doldu</Pill>;
+  if (s === "soon") return <Pill tone="amber">Son günler</Pill>;
+  return <Pill tone="brand">Başvuruya açık</Pill>;
+}
+
+export function OpportunitiesAdminClient({
+  initialItems,
+  reels,
+}: {
+  initialItems: Opportunity[];
+  reels: Reel[];
+}) {
+  const list = useAdminList(initialItems, api);
+  const filter = useListFilter(list.items, (o) =>
+    [o.title, o.slug, getCountryByCode(o.country)?.name, getCategoryBySlug(o.category)?.title].join(" ")
   );
-  const countryOptions = useMemo(
-    () => getCountries().map((c) => ({ value: c.code, label: c.name })),
-    []
-  );
-
-  async function handleSave(data: Opportunity) {
-    if (editingItem) {
-      await saveOpportunity(data);
-      setItems((prev) => prev.map((o) => (o.id === data.id ? data : o)));
-    } else {
-      await createOpportunity(data);
-      setItems((prev) => [data, ...prev]);
-    }
-    setEditingItem(null);
-    setIsCreating(false);
-  }
-
-  async function handleDelete(id: string) {
-    await deleteOpportunity(id);
-    setItems((prev) => prev.filter((o) => o.id !== id));
-    setDeletingId(null);
-  }
+  const reelOptions = useMemo(() => reels.map((r) => ({ id: r.id, title: r.title, status: r.status })), [reels]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Projeler
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">{items.length} fırsat</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsCreating(true)}
-          className="rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800"
-        >
-          + Yeni Fırsat
-        </button>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              <th className="px-4 py-3 font-semibold text-slate-600">Başlık</th>
-              <th className="hidden px-4 py-3 font-semibold text-slate-600 sm:table-cell">Ülke</th>
-              <th className="hidden px-4 py-3 font-semibold text-slate-600 md:table-cell">Son tarih</th>
-              <th className="hidden px-4 py-3 font-semibold text-slate-600 lg:table-cell">Öne çıkan</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {items.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/50">
-                <td className="px-4 py-3">
-                  <span className="font-medium text-slate-900 line-clamp-1">{item.title}</span>
-                  <span className="block text-xs text-slate-400">{item.category}</span>
-                </td>
-                <td className="hidden px-4 py-3 text-slate-700 sm:table-cell">{item.country}</td>
-                <td className="hidden px-4 py-3 text-slate-700 md:table-cell">{item.deadline}</td>
-                <td className="hidden px-4 py-3 lg:table-cell">
-                  {item.featured ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                      Evet
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditingItem(item)}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      Düzenle
-                    </button>
-                    {deletingId === item.id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item.id)}
-                          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-                        >
-                          Evet, sil
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeletingId(null)}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          İptal
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setDeletingId(item.id)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
-                      >
-                        Sil
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {items.length === 0 && (
-          <p className="px-4 py-10 text-center text-sm text-slate-500">Henüz fırsat yok.</p>
+    <>
+      <ListShell
+        title="Projeler"
+        description="Sitedeki fırsatlar. Yeni kayıtlar taslak başlar; yalnızca “Yayında” olanlar sitede, sayımlarda ve takvimde görünür. “Süresi doldu” başvuru durumudur, yayın durumu değildir."
+        items={list.items}
+        visible={filter.visible}
+        filtered={filter.filtered}
+        search={filter.search}
+        setSearch={filter.setSearch}
+        status={filter.status}
+        setStatus={filter.setStatus}
+        newLabel="Yeni proje"
+        onNew={() => list.setEditing("new")}
+        notice={list.notice}
+        dismissNotice={() => list.setNotice(null)}
+        emptyText="Henüz proje yok."
+        renderRow={(o) => (
+          <RowShell
+            title={o.title}
+            status={o.status}
+            badges={<DeadlinePill deadline={o.deadline} />}
+            meta={
+              <>
+                {[getCountryByCode(o.country)?.name, getCategoryBySlug(o.category)?.title].filter(Boolean).join(" · ") || "Ülke/kategori seçilmedi"}
+                {" · "}
+                {o.deadline ? `Son tarih ${formatDateShortTr(o.deadline)}` : "Son tarih girilmedi"}
+                {stamp(o.updatedAt) && ` · Güncellendi ${stamp(o.updatedAt)}`}
+                <span className="block font-mono text-[11px] text-slate-400">/opportunities/{o.slug || "—"}</span>
+              </>
+            }
+            actions={
+              <RowActions
+                item={o}
+                viewHref={`/opportunities/${o.slug}`}
+                busy={list.busyId === o.id}
+                onEdit={() => list.setEditing(o)}
+                onStatus={(s) => list.changeStatus(o, s)}
+                onDelete={() => list.setDeleting(o)}
+              />
+            }
+          />
         )}
-      </div>
-
-      <OpportunityFormModal
-        item={editingItem}
-        open={isCreating || editingItem !== null}
-        onClose={() => { setIsCreating(false); setEditingItem(null); }}
-        onSave={handleSave}
-        categoryOptions={categoryOptions}
-        countryOptions={countryOptions}
       />
-    </div>
+
+      {list.editing && (
+        <OpportunityEditor
+          key={list.editing === "new" ? "new" : list.editing.id}
+          item={list.editing === "new" ? null : list.editing}
+          reels={reelOptions}
+          onClose={() => list.setEditing(null)}
+          onItems={list.setItems}
+          onSaved={(items, message) => {
+            list.setItems(items);
+            list.setNotice({ tone: "success", text: message });
+            list.setEditing(null);
+          }}
+        />
+      )}
+      {list.deleting && (
+        <DeleteConfirm
+          item={list.deleting}
+          noun="Proje"
+          busy={list.deleteBusy}
+          error={list.deleteError}
+          onConfirm={list.confirmDelete}
+          onCancel={() => list.setDeleting(null)}
+        />
+      )}
+    </>
   );
 }

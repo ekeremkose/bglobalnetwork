@@ -1,6 +1,6 @@
-import type { Opportunity } from "@/lib/types/content";
+import type { Opportunity, Seed } from "@/lib/types/content";
 
-export const opportunities: Opportunity[] = [
+export const opportunities: Seed<Opportunity>[] = [
   {
     id: "opp-1",
     slug: "erasmus-plus-kisa-donem-ogrenci-hareketliligi-avrupa-2026",
@@ -114,6 +114,65 @@ export const opportunities: Opportunity[] = [
       "Örnek burs duyurusu: değerlendirme akademik başarı, niyet mektubu ve referanslar üzerinden yapılır.\n\nGerekli belgeler:\n- CV\n- Niyet mektubu\n- Referans\n- Dil belgesi\n\nNot: Bu içerik mock/dummy örnektir.",
     externalLink: "https://example.com/scholarship",
     coverImage: "https://picsum.photos/seed/bglobal-opp-7/1200/800"
+  },
+  {
+    id: "opp-8",
+    slug: "esc-gonulluluk-portekiz-genclik-merkezi",
+    title: "ESC Gönüllülük (Portekiz): Gençlik Merkezi Projesi",
+    country: "PT",
+    category: "gonulluluk",
+    publishedAt: "2026-10-15",
+    deadline: "2026-11-14",
+    shortDescription:
+      "Lizbon’da 6 ay; konaklama ve harçlık destekli, gençlik atölyeleri ve etkinlik desteği.",
+    fullDescription:
+      "Lizbon’da 6 ay; konaklama ve harçlık destekli, gençlik atölyeleri ve etkinlik desteği.\n\nNot: Bu içerik mock/dummy örnektir. Gerçek başvurular için kurum duyurularını kontrol et.",
+    externalLink: "https://example.com/esc-gonulluluk-portekiz-genclik-merkezi",
+    coverImage: "https://picsum.photos/seed/bglobal-opp-8/1200/800"
+  },
+  {
+    id: "opp-9",
+    slug: "erasmus-plus-genclik-degisimi-italya",
+    title: "Erasmus+ Gençlik Değişimi: Dijital Vatandaşlık",
+    country: "IT",
+    category: "erasmus-plus",
+    publishedAt: "2026-10-12",
+    deadline: "2026-11-21",
+    shortDescription:
+      "10 günlük çok uluslu gençlik değişimi; yol ve konaklama masrafları karşılanır.",
+    fullDescription:
+      "10 günlük çok uluslu gençlik değişimi; yol ve konaklama masrafları karşılanır.\n\nNot: Bu içerik mock/dummy örnektir. Gerçek başvurular için kurum duyurularını kontrol et.",
+    externalLink: "https://example.com/erasmus-plus-genclik-degisimi-italya",
+    coverImage: "https://picsum.photos/seed/bglobal-opp-9/1200/800"
+  },
+  {
+    id: "opp-10",
+    slug: "berlin-kis-okulu-veri-bilimi",
+    title: "Berlin Kış Okulu: Veri Bilimi & Yapay Zekâ",
+    country: "DE",
+    category: "yaz-okulu",
+    publishedAt: "2026-10-10",
+    deadline: "2026-12-02",
+    shortDescription:
+      "2 hafta yoğun program; uygulamalı projeler, konuşmacılar ve sertifika.",
+    fullDescription:
+      "2 hafta yoğun program; uygulamalı projeler, konuşmacılar ve sertifika.\n\nNot: Bu içerik mock/dummy örnektir. Gerçek başvurular için kurum duyurularını kontrol et.",
+    externalLink: "https://example.com/berlin-kis-okulu-veri-bilimi",
+    coverImage: "https://picsum.photos/seed/bglobal-opp-10/1200/800"
+  },
+  {
+    id: "opp-11",
+    slug: "isvec-arastirma-staji-2027",
+    title: "İsveç Araştırma Stajı – 2027 Bahar",
+    country: "SE",
+    category: "staj",
+    publishedAt: "2026-10-08",
+    deadline: "2026-12-15",
+    shortDescription:
+      "Üniversite laboratuvarlarında 3 ay; mentorluk ve aylık destek bursu.",
+    fullDescription:
+      "Üniversite laboratuvarlarında 3 ay; mentorluk ve aylık destek bursu.\n\nNot: Bu içerik mock/dummy örnektir. Gerçek başvurular için kurum duyurularını kontrol et.",
+    externalLink: "https://example.com/isvec-arastirma-staji-2027",
+    coverImage: "https://picsum.photos/seed/bglobal-opp-11/1200/800"
   }
 ];
-

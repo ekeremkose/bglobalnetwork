@@ -1,83 +1,74 @@
 import Link from "next/link";
+import { getSiteSettings } from "@/lib/repositories/settingsRepository";
 
-export function SiteFooter() {
+const linkClass = "transition hover:text-white";
+
+export async function SiteFooter() {
+  const SITE = await getSiteSettings();
+  const external = [
+    { label: "Instagram", href: SITE.instagramUrl },
+    { label: "LinkedIn", href: SITE.linkedinUrl },
+  ].filter((l): l is { label: string; href: string } => !!l.href);
+
   return (
-    <footer className="border-t border-white/[0.06]">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:px-8">
-        <div className="lg:col-span-5">
-          <div className="text-sm font-semibold text-white">B-Global Network</div>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/35">
-            Uluslararası fırsatları öğrencilerle buluşturur.
-          </p>
-        </div>
-
-        <div className="grid gap-8 sm:grid-cols-3 lg:col-span-7">
+    <footer className="border-t border-white/10">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">
-              Sayfalar
+            <div className="text-sm font-semibold text-white">
+              B-Global Network
             </div>
-            <ul className="mt-4 space-y-2.5 text-sm text-white/45">
-              <li>
-                <Link href="/opportunities" className="transition hover:text-white">
-                  Projeler
-                </Link>
-              </li>
-              <li>
-                <Link href="/reels" className="transition hover:text-white">
-                  İçerik
-                </Link>
-              </li>
-              <li>
-                <Link href="/duyurular" className="transition hover:text-white">
-                  Blog
-                </Link>
-              </li>
-            </ul>
+            <p className="mt-2 max-w-xs text-[15px] leading-relaxed text-white/50">
+              Türkiye&apos;den öğrenciler için uluslararası programlar, son
+              tarihler ve başvuru notları.
+            </p>
           </div>
 
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">
-              Topluluk
-            </div>
-            <ul className="mt-4 space-y-2.5 text-sm text-white/45">
-              <li>
-                <a
-                  href="https://www.instagram.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="transition hover:text-white"
-                >
-                  Instagram
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://www.linkedin.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="transition hover:text-white"
-                >
-                  LinkedIn
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">
+          <nav className="flex flex-wrap gap-x-8 gap-y-3 text-[15px] text-white/60">
+            <Link href="/opportunities" className={linkClass}>
+              Projeler
+            </Link>
+            <Link href="/reels" className={linkClass}>
+              İçerik
+            </Link>
+            <Link href="/duyurular" className={linkClass}>
+              Blog
+            </Link>
+            <Link href="/contact" className={linkClass}>
               İletişim
+            </Link>
+            {external.map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                target="_blank"
+                rel="noreferrer"
+                className={linkClass}
+              >
+                {l.label}
+              </a>
+            ))}
+          </nav>
+
+          {(SITE.contactEmail || SITE.location) && (
+            <div className="text-[15px] text-white/50">
+              {SITE.contactEmail && (
+                <div>
+                  <a
+                    href={`mailto:${SITE.contactEmail}`}
+                    className="underline decoration-white/25 underline-offset-4 transition hover:text-white hover:decoration-white/60"
+                  >
+                    {SITE.contactEmail}
+                  </a>
+                </div>
+              )}
+              {SITE.location && <div className="mt-1">{SITE.location}</div>}
             </div>
-            <ul className="mt-4 space-y-2.5 text-sm text-white/45">
-              <li>info@bglobal.network</li>
-              <li>İstanbul</li>
-            </ul>
-          </div>
+          )}
         </div>
 
-        <div className="border-t border-white/[0.06] pt-6 lg:col-span-12">
-          <div className="text-xs text-white/20">
-            © {new Date().getFullYear()} B-Global Network
-          </div>
+        <div className="mt-10 border-t border-white/10 pt-5 text-[13px] text-white/40">
+          © {new Date().getFullYear()} B-Global Network
         </div>
       </div>
     </footer>

@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Instrument_Serif } from "next/font/google";
 import "./../styles/globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = Geist({
+  subsets: ["latin", "latin-ext"],
   variable: "--font-sans",
-  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const serif = Instrument_Serif({
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-serif",
   display: "swap",
 });
 
@@ -22,7 +29,7 @@ export default function RootLayout({
   children
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="tr" className={inter.variable}>
+    <html lang="tr" className={`${inter.variable} ${serif.variable}`}>
       <body className={`min-h-dvh antialiased ${inter.className}`}>
         {children}
       </body>

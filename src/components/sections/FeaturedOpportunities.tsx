@@ -3,8 +3,8 @@ import { getFeaturedOpportunities } from "@/lib/repositories/opportunityReposito
 import { OpportunityGrid } from "@/components/opportunities/OpportunityGrid";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
-export function FeaturedOpportunities() {
-  const featured = getFeaturedOpportunities(6);
+export async function FeaturedOpportunities() {
+  const featured = await getFeaturedOpportunities(6);
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

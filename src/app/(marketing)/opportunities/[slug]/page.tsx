@@ -1,53 +1,95 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OpportunityDetail } from "@/components/opportunities/OpportunityDetail";
-import { OpportunityGrid } from "@/components/opportunities/OpportunityGrid";
-import { ReelGrid } from "@/components/reels/ReelGrid";
-import { getOpportunityBySlug, getRelatedOpportunities } from "@/lib/repositories/opportunityRepository";
+import {
+  OpportunityRow,
+  OpportunityTableHead,
+} from "@/components/opportunities/OpportunityRow";
+import {
+  getOpportunityBySlug,
+  getRelatedOpportunities,
+} from "@/lib/repositories/opportunityRepository";
 import { getReelsByIds } from "@/lib/repositories/reelRepository";
+import { getDeadlineStatus } from "@/lib/utils/date";
+
+export const revalidate = 3600;
 
 export default async function OpportunityDetailPage({
-  params
+  params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const opportunity = getOpportunityBySlug(slug);
+  const opportunity = await getOpportunityBySlug(slug);
   if (!opportunity) notFound();
 
   const relatedReels = opportunity.relatedReelIds?.length
-    ? getReelsByIds(opportunity.relatedReelIds)
+    ? await getReelsByIds(opportunity.relatedReelIds)
     : [];
-  const relatedOpportunities = getRelatedOpportunities(opportunity, 6);
+  // Open programs first, so "similar" never leads with something you can't apply to.
+  const relatedOpportunities = (await getRelatedOpportunities(opportunity, 12))
+    .sort(
+      (a, b) =>
+        Number(getDeadlineStatus(a.deadline) === "closed") -
+        Number(getDeadlineStatus(b.deadline) === "closed")
+    )
+    .slice(0, 4);
 
   return (
-    <div className="space-y-10">
-      <div className="flex items-center gap-2 text-sm text-slate-600">
-        <Link href="/opportunities" className="hover:text-ink">
+    <div className="pb-24 pt-10 sm:pt-14">
+      <div className="mb-8 flex items-center gap-2 text-[15px] text-white/50">
+        <Link href="/opportunities" className="transition hover:text-white">
           Projeler
         </Link>
-        <span>/</span>
-        <span className="line-clamp-1 text-ink">{opportunity.title}</span>
+        <span aria-hidden>/</span>
+        <span className="line-clamp-1 text-white/75">{opportunity.title}</span>
       </div>
 
       <OpportunityDetail opportunity={opportunity} />
 
-      {relatedReels.length > 0 ? (
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-ink">
-            İlgili İçerik
+      {relatedReels.length > 0 && (
+        <section className="mt-20 border-t border-white/10 pt-10">
+          <h2 className="text-2xl font-semibold tracking-[-0.02em] text-white">
+            İlgili içerik
           </h2>
-          <ReelGrid reels={relatedReels} />
+          <ul className="mt-6 max-w-2xl divide-y divide-white/10 border-y border-white/10">
+            {relatedReels.map((r) => (
+              <li key={r.id}>
+                <a
+                  href={r.instagramUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group block py-5"
+                >
+                  <span className="text-sm font-medium text-brand-300">
+                    {r.tag}
+                  </span>
+                  <span className="mt-1 block text-xl font-semibold text-white underline decoration-white/0 underline-offset-4 transition group-hover:decoration-white/40">
+                    {r.title} ↗
+                  </span>
+                  <span className="mt-1.5 block text-[15px] text-white/55">
+                    {r.shortDescription}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </section>
-      ) : null}
+      )}
 
-      {relatedOpportunities.length > 0 ? (
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold text-ink">Benzer projeler</h2>
-          <OpportunityGrid opportunities={relatedOpportunities} />
+      {relatedOpportunities.length > 0 && (
+        <section className="mt-20 border-t border-white/10 pt-10">
+          <h2 className="text-2xl font-semibold tracking-[-0.02em] text-white">
+            Benzer programlar
+          </h2>
+          <div className="mt-6">
+            <OpportunityTableHead />
+            {relatedOpportunities.map((o) => (
+              <OpportunityRow key={o.id} opportunity={o} />
+            ))}
+          </div>
         </section>
-      ) : null}
+      )}
     </div>
   );
 }
-

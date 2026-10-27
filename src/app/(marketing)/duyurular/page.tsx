@@ -1,9 +1,11 @@
 import { DuyurularPageClient } from "@/components/pages/DuyurularPageClient";
 import { getAnnouncements } from "@/lib/repositories/announcementRepository";
 
-export const metadata = { title: "Duyurular — B-Global Network" };
+export const metadata = { title: "Blog — B-Global Network" };
 
-export default function DuyurularPage() {
-  const announcements = getAnnouncements();
+export const revalidate = 3600;
+
+export default async function DuyurularPage() {
+  const announcements = await getAnnouncements();
   return <DuyurularPageClient announcements={announcements} />;
 }

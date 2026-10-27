@@ -5,15 +5,26 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:check": "bash scripts/build-check.sh",
+    "test:admin": "node --import ./scripts/register-alias.mjs scripts/admin-regression.mjs",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/db-migrate.mjs",
+    "db:seed": "node --env-file-if-exists=.env.local --import ./scripts/register-alias.mjs scripts/seed-import.mjs",
+    "test:infra": "node --import ./scripts/register-alias.mjs scripts/infra-tests.mjs",
+    "test:authz": "node --env-file=.env.local scripts/authz-probe.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "1.2.0",
+    "@vercel/blob": "2.8.2",
     "next": "^15.2.4",
+    "next-auth": "5.0.0-beta.32",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "sharp": "0.34.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.12",
     "@types/node": "^22.13.10",
     "@types/react": "^19.0.12",
     "@types/react-dom": "^19.0.4",
