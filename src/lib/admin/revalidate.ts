@@ -1,6 +1,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CONTENT_TAG } from "@/lib/cache";
 import { getAdminSession } from "@/lib/auth/guard";
+import { MAINTENANCE_ACTION_MESSAGE, maintenanceOn } from "@/lib/config/maintenance";
 
 /**
  * Drops every cached content read and re-renders the public pages after a change,
@@ -24,6 +25,8 @@ export async function guard<R extends { ok: boolean }>(
   run: () => Promise<R>,
   fallback: (message: string) => R
 ): Promise<R> {
+  // The service must not even start during maintenance, session or not.
+  if (maintenanceOn()) return fallback(MAINTENANCE_ACTION_MESSAGE);
   if (!(await getAdminSession())) return fallback(UNAUTHORIZED);
   try {
     const result = await run();

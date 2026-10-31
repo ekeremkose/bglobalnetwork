@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Instrument_Serif } from "next/font/google";
 import "./../styles/globals.css";
+import { NOINDEX_ROBOTS, indexingAllowed } from "@/lib/config/indexing";
 
 const inter = Geist({
   subsets: ["latin", "latin-ext"],
@@ -22,7 +23,9 @@ export const metadata: Metadata = {
     template: "%s | B-Global Network"
   },
   description:
-    "B-Global Network: Öğrenciler için Erasmus+, staj, gönüllülük, burs ve yaz okulu gibi uluslararası fırsatları keşfet."
+    "B-Global Network: Öğrenciler için Erasmus+, staj, gönüllülük, burs ve yaz okulu gibi uluslararası fırsatları keşfet.",
+  // Decided centrally (config/indexing.ts); the middleware adds the matching X-Robots-Tag header.
+  ...(indexingAllowed() ? {} : { robots: NOINDEX_ROBOTS })
 };
 
 export default function RootLayout({

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/auth/guard";
 import { MAX_UPLOAD_BYTES, processCoverImage } from "@/lib/media/coverImage";
 import { MediaConfigError, blob } from "@/lib/media/blob";
+import { MAINTENANCE_ACTION_MESSAGE, maintenanceOn } from "@/lib/config/maintenance";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ const json = (body: Record<string, unknown>, status: number) =>
 
 /** Reel cover upload. Administrator only: anyone else gets the same 404 as any unknown URL. */
 export async function POST(request: NextRequest) {
+  if (maintenanceOn()) return json({ message: MAINTENANCE_ACTION_MESSAGE }, 503);
   if (!(await getAdminSession())) return notFound();
 
   // The session cookie is SameSite=Lax; this additionally rejects a cross-origin form post.

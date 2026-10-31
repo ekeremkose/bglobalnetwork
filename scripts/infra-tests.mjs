@@ -251,5 +251,108 @@ await test("covers: a file another record still uses is never deleted; only our 
   delete process.env.ALLOW_MEMORY_STORE;
 });
 
+// ---- maintenance mode and the central noindex setting ----------------------------------------------------
+{
+  for (const k of ["MAINTENANCE_MODE", "MAINTENANCE_RETRY_AFTER_SECONDS", "SITE_ALLOW_INDEXING"]) delete process.env[k];
+  const nextServer = await import("next/server");
+  const NextRequest = nextServer.NextRequest ?? nextServer.default?.NextRequest;
+  const { middleware } = await import(new URL("../src/middleware.ts", import.meta.url).href);
+  const { maintenanceOn, retryAfterSeconds, maintenanceResponse, MAINTENANCE_ACTION_MESSAGE } = await load("config/maintenance.ts");
+  const { indexingAllowed } = await load("config/indexing.ts");
+  const req = (path, method = "GET") => new NextRequest(`https://example.test${path}`, { method });
+  const PATHS = ["/", "/opportunities", "/reels", "/duyurular/x", "/contact", "/__not_found__", "/reels/demo/demo-opp-1.webp",
+    "/admin", "/admin/review", "/internal-admin", "/internal-admin/giris", "/api/auth/callback/google", "/api/auth/session", "/k3x9-concealed-admin-path-0123456789", "/k3x9-concealed-admin-path-0123456789/reels", "/k3x9-concealed-admin-path-0123456789/yukle"];
+  const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"];
+
+  await test("maintenance: only 1/true/on switch it on; Retry-After is configurable and clamped", () => {
+    for (const [v, on] of [[undefined, false], ["", false], ["0", false], ["false", false], ["yes", false], ["off", false], ["1", true], [" 1 ", true], ["true", true], ["TRUE", true], ["on", true]]) {
+      if (v === undefined) delete process.env.MAINTENANCE_MODE; else process.env.MAINTENANCE_MODE = v;
+      assert.equal(maintenanceOn(), on, `value ${JSON.stringify(v)}`);
+    }
+    delete process.env.MAINTENANCE_MODE;
+    assert.equal(retryAfterSeconds(), 3600);
+    for (const [v, want] of [["120", 120], ["5", 60], ["999999", 86400], ["abc", 3600], ["", 3600]]) { process.env.MAINTENANCE_RETRY_AFTER_SECONDS = v; assert.equal(retryAfterSeconds(), want, v); }
+    delete process.env.MAINTENANCE_RETRY_AFTER_SECONDS;
+  });
+
+  await test("maintenance: every path and method gets the 503 page with Retry-After, no store, no scripts, no external requests", async () => {
+    process.env.MAINTENANCE_MODE = "1"; process.env.ADMIN_BASE_PATH = "k3x9-concealed-admin-path-0123456789";
+    // DATABASE_URL and ALLOW_MEMORY_STORE are unset: any attempt to reach a store would throw StoreConfigError.
+    let n = 0;
+    for (const path of PATHS) for (const method of METHODS) {
+      const res = await middleware(req(path, method));
+      assert.equal(res.status, 503, `${method} ${path}`);
+      assert.equal(res.headers.get("retry-after"), "3600");
+      assert.equal(res.headers.get("cache-control"), "no-store");
+      assert.match(res.headers.get("x-robots-tag") ?? "", /noindex/);
+      assert.match(res.headers.get("content-type") ?? "", /^text\/html/);
+      const body = await res.text();
+      if (method === "HEAD") assert.equal(body, ""); else {
+        assert.match(body, /Bakım|bakım/); assert.ok(!/<script|https?:\/\/|<img|<link|@import|url\(/i.test(body), "self-contained page");
+        assert.ok(!body.includes("k3x9-concealed"), "never mentions the admin path");
+      }
+      n++;
+    }
+    assert.equal(n, PATHS.length * METHODS.length);
+    assert.equal(maintenanceResponse("GET").status, 503);
+    delete process.env.MAINTENANCE_MODE; delete process.env.ADMIN_BASE_PATH;
+  });
+
+  await test("maintenance: back to normal when the variable is removed (no residue)", async () => {
+    process.env.ADMIN_BASE_PATH = "k3x9-concealed-admin-path-0123456789"; process.env.SITE_ALLOW_INDEXING = "1";
+    const pub = await middleware(req("/opportunities")); assert.equal(pub.status, 200); assert.equal(pub.headers.get("retry-after"), null);
+    assert.equal((await middleware(req("/admin/review"))).status, 200, "rewritten to the site's 404 page, not 503");
+    assert.equal((await middleware(req("/admin/review"))).headers.get("x-middleware-rewrite")?.endsWith("/__not_found__"), true);
+    const adm = await middleware(req("/k3x9-concealed-admin-path-0123456789/reels")); assert.match(adm.headers.get("x-middleware-rewrite") ?? "", /\/internal-admin\/reels$/);
+    delete process.env.ADMIN_BASE_PATH; delete process.env.SITE_ALLOW_INDEXING;
+  });
+
+  await test("maintenance: admin guards refuse on their own (defence in depth, no middleware involved)", async () => {
+    process.env.MAINTENANCE_MODE = "1"; process.env.ADMIN_BASE_PATH = "k3x9-concealed-admin-path-0123456789";
+    const { getAdminSession, requireAdminPage } = await load("auth/guard.ts");
+    const { guard } = await load("admin/revalidate.ts");
+    assert.equal(await getAdminSession(), null);
+    await assert.rejects(requireAdminPage(), (e) => /NEXT_HTTP_ERROR_FALLBACK|NEXT_NOT_FOUND/.test(String(e?.digest ?? e?.message)));
+    let ran = false;
+    const r = await guard(async () => { ran = true; return { ok: true }; }, (message) => ({ ok: false, message }));
+    assert.equal(ran, false, "the service never starts"); assert.deepEqual(r, { ok: false, message: MAINTENANCE_ACTION_MESSAGE });
+    const upload = await import(new URL("../src/app/internal-admin/(panel)/yukle/route.ts", import.meta.url).href);
+    const up = await upload.POST(new NextRequest("https://example.test/internal-admin/yukle", { method: "POST", headers: { origin: "https://example.test" } }));
+    assert.equal(up.status, 503); assert.match((await up.json()).message, /bakım/i);
+    const cb = await import(new URL("../src/app/api/auth/[...nextauth]/route.ts", import.meta.url).href);
+    const cbr = await cb.GET(new NextRequest("https://example.test/api/auth/callback/google?code=x", { headers: { cookie: "bg_admin_return=/k3x9-concealed-admin-path-0123456789" } }));
+    assert.equal(cbr.status, 503, "the OAuth callback does not run during maintenance");
+    const { signInAction } = await import(new URL("../src/app/internal-admin/giris/actions.ts", import.meta.url).href);
+    assert.equal(await signInAction(), undefined, "sign-in does not start");
+    delete process.env.MAINTENANCE_MODE; delete process.env.ADMIN_BASE_PATH;
+  });
+
+  await test("indexing: default is noindex everywhere on the public site; SITE_ALLOW_INDEXING=1 is the single reversible switch", async () => {
+    delete process.env.SITE_ALLOW_INDEXING;
+    assert.equal(indexingAllowed(), false);
+    for (const v of ["", "0", "true", "yes", "on", "2"]) { process.env.SITE_ALLOW_INDEXING = v; assert.equal(indexingAllowed(), false, `value ${JSON.stringify(v)} must not allow indexing`); }
+    delete process.env.SITE_ALLOW_INDEXING;
+    for (const path of ["/", "/opportunities", "/reels", "/duyurular/x", "/contact", "/reels/demo/demo-opp-1.webp", "/does-not-exist", "/admin/review", "/internal-admin"]) {
+      for (const method of ["GET", "HEAD", "POST"]) {
+        const res = await middleware(req(path, method));
+        assert.equal(res.headers.get("x-robots-tag"), "noindex, nofollow", `${method} ${path}`);
+      }
+    }
+    process.env.SITE_ALLOW_INDEXING = "1"; assert.equal(indexingAllowed(), true);
+    for (const path of ["/", "/opportunities", "/reels/demo/demo-opp-1.webp", "/does-not-exist"]) assert.equal((await middleware(req(path))).headers.get("x-robots-tag"), null, path);
+    delete process.env.SITE_ALLOW_INDEXING;
+  });
+
+  await test("indexing: the root layout uses the same setting, robots.txt never disallows, the admin stays noindex regardless", () => {
+    const layout = fs.readFileSync(new URL("../src/app/layout.tsx", import.meta.url), "utf8");
+    assert.match(layout, /indexingAllowed\(\)/); assert.match(layout, /robots: NOINDEX_ROBOTS/);
+    for (const f of ["../public/robots.txt", "../src/app/robots.ts", "../src/app/robots.tsx", "../src/app/robots.txt"]) {
+      const file = new URL(f, import.meta.url);
+      if (fs.existsSync(file)) assert.ok(!/^\s*disallow:\s*\S/im.test(fs.readFileSync(file, "utf8")), `${f} must not disallow crawling`);
+    }
+    assert.match(fs.readFileSync(new URL("../src/app/internal-admin/layout.tsx", import.meta.url), "utf8"), /robots: \{ index: false, follow: false, nocache: true \}/);
+  });
+}
+
 console.log(`\n${pass} passed, ${failures.length} failed`);
 process.exit(failures.length ? 1 : 0);

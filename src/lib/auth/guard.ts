@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { isAdminIdentity } from "@/lib/auth/policy";
 import { adminBasePath } from "@/lib/config/admin";
+import { maintenanceOn } from "@/lib/config/maintenance";
 
 export type AdminSession = { email: string };
 
@@ -11,6 +12,8 @@ export type AdminSession = { email: string };
  * (missing secret, bad cookie, other Google account) is "not an admin".
  */
 export async function getAdminSession(): Promise<AdminSession | null> {
+  // During maintenance nobody is an administrator, whatever cookie they hold.
+  if (maintenanceOn()) return null;
   try {
     const session = await auth();
     const email = session?.user?.email;
@@ -25,7 +28,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
 /** For admin pages and layouts: anyone else is sent to the sign-in page (which shows no data). */
 export async function requireAdminPage(): Promise<AdminSession> {
   const base = adminBasePath();
-  if (!base) notFound();
+  if (!base || maintenanceOn()) notFound();
   const admin = await getAdminSession();
   if (!admin) redirect(`${base}/giris`);
   return admin;
